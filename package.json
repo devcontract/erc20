@@ -1,0 +1,19 @@
+{
+  "name": "erc20-contracts",
+  "version": "0.0.1",
+  "description": "Ethereum Smart Contracts",
+  "main": "truffle.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test"
+  },
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "bignumber": "^1.1.0",
+    "truffle": "^3.4.11",
+    "truffle-hdwallet-provider": "0.0.3"
+  }
+}
