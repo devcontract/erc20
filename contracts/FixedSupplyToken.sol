@@ -1,8 +1,8 @@
-pragma solidity ^0.4.8;
+pragma solidity ^0.4.18;
 
 
 import "./ERC20Interface.sol";
-
+import "./library/SafeMath.sol";
 
 /**
 Implements ERC 20 Token standard: https://github.com/ethereum/EIPs/issues/20
@@ -10,77 +10,91 @@ Implements ERC 20 Token standard: https://github.com/ethereum/EIPs/issues/20
 This is a contract for a fixed supply coin.
 */
 contract FixedSupplyToken is ERC20Interface {
+  using SafeMath for uint256;
 
-    // meta data
-    string public constant symbol = "EX1";
+  // meta data
+  string public constant symbol = "EX1";
 
-    string public constant name = "ERC20 Token";
+  string public version = '0.1';
 
-    uint256 public constant decimals = 18;
+  string public constant name = "ERC20 Token";
 
-    uint256 _totalSupply = 10 * (10 ** 6) * 10 ** decimals; // ten million
+  uint256 public constant decimals = 18;
 
-    // Owner of this contract
-    address public owner;
+  uint256 TOTAL_SUPPLY = 10 * (10 ** 6) * 10 ** decimals; // ten million
 
-    // Balances for each account
-    mapping (address => uint256) balances;
+  // Owner of this contract
+  address public owner;
 
-    // Owner of account approves the transfer of an amount to another account owner -> (recipient -> amount)
-    mapping (address => mapping (address => uint256)) allowed;
+  // Balances for each account
+  mapping(address => uint256) internal balances;
 
-    // Constructor
-    // the creator gets all the tokens initially
-    function FixedSupplyToken() {
-        owner = msg.sender;
-        balances[owner] = _totalSupply;
-    }
+  // Owner of account approves the transfer of an amount to another account owner -> (recipient -> amount)
+  // This is used by exchanges. The owner effectively gives an exchange POA to transfer coins using
+  // the function transferFrom()
+  mapping(address => mapping(address => uint256)) internal allowed;
 
-    // Implements ERC20Interface
-    function totalSupply() constant returns (uint256 supply) {
-        supply = _totalSupply;
-    }
+  // Constructor
+  // the creator gets all the tokens initially
+  function FixedSupplyToken() public {
+    owner = msg.sender;
+    balances[owner] = TOTAL_SUPPLY;
+  }
 
-    // Implements ERC20Interface
-    function balanceOf(address _owner) constant returns (uint256 balance) {
-        return balances[_owner];
-    }
+  // Implements ERC20Interface
+  function totalSupply() public view returns (uint256 supply) {
+    supply = TOTAL_SUPPLY;
+  }
 
-    // Implements ERC20Interface
-    function transfer(address _to, uint256 _amount) returns (bool success) {
-        require(balances[_to] + _amount > balances[_to]);
-        require(balances[msg.sender] >= _amount);
+  // Implements ERC20Interface
+  function balanceOf(address _owner) public view returns (uint256 balance) {
+    return balances[_owner];
+  }
 
-        balances[msg.sender] -= _amount;
-        balances[_to] += _amount;
-        Transfer(msg.sender, _to, _amount);
-        return true;
-    }
+  // Implements ERC20Interface
+  // No need to protect balances because only sender balance is accessed here
+  function transfer(address _to, uint256 _amount) public returns (bool success) {
+    require(_to != address(0));
+    require(_amount <= balances[msg.sender]);
 
-    // Implements ERC20Interface
-    function transferFrom(address _from, address _to, uint256 _amount) returns (bool success) {
-        require(balances[_from] >= _amount && allowed[_from][msg.sender] >= _amount && balances[_to] + _amount > balances[_to]);
-        uint256 allowance = allowed[_from][msg.sender];
-        require(balances[_from] >= _amount && allowance >= _amount);
+    // SafeMath.sub will throw if there is not enough balance of if there is an overflow
+    balances[msg.sender] = balances[msg.sender].sub(_amount);
+    balances[_to] = balances[_to].add(_amount);
 
-        balances[_from] -= _amount;
-        allowed[_from][msg.sender] -= _amount;
-        balances[_to] += _amount;
-        Transfer(_from, _to, _amount);
-        return true;
-    }
+    // notify
+    Transfer(msg.sender, _to, _amount);
+    return true;
+  }
 
-    // Implements ERC20Interface
-    function approve(address _spender, uint256 _value) returns (bool success) {
-        allowed[msg.sender][_spender] = _value;
-        Approval(msg.sender, _spender, _value);
-        return true;
-    }
+  // Implements ERC20Interface
+  function transferFrom(address _from, address _to, uint256 _amount) public returns (bool success) {
+    // protection against integer overflow
+    require(_to != address(0));
+    require(_amount <= balances[_from]);
+    require(_amount <= allowed[_from][msg.sender]);
 
-    // Implements ERC20Interface
-    function allowance(address _owner, address _spender) constant returns (uint256 remaining) {
-        return allowed[_owner][_spender];
-    }
+    balances[_from] = balances[_from].sub(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_amount);
+
+    // notify
+    Transfer(_from, _to, _amount);
+    return true;
+  }
+
+  // Implements ERC20Interface
+  function approve(address _spender, uint256 _value) public returns (bool success) {
+    // no need to check sender identity as he can only modify his own allowance
+    allowed[msg.sender][_spender] = _value;
+    // notify
+    Approval(msg.sender, _spender, _value);
+    return true;
+  }
+
+  // Implements ERC20Interface
+  function allowance(address _owner, address _spender) public view returns (uint256 remaining) {
+    return allowed[_owner][_spender];
+  }
 
 
 }
