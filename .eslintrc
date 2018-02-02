@@ -22,8 +22,9 @@
     "strict": [
       2,
       "global"
-    ]
+    ],
 
     // Code style
+    "space-before-function-paren": "off"
   }
 }
